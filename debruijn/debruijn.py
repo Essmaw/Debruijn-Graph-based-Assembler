@@ -182,7 +182,7 @@ def remove_paths(
     :param delete_sink_node: (boolean) True->We remove the last node of a path
     :return: (nx.DiGraph) A directed graph object
     """
-    
+    pass
 
 
 def select_best_path(
@@ -264,7 +264,8 @@ def get_starting_nodes(graph: DiGraph) -> List[str]:
     :param graph: (nx.DiGraph) A directed graph object
     :return: (list) A list of all nodes without predecessors
     """
-    pass
+    starting_nodes = [node for node in graph.nodes() if len(list(graph.predecessors(node))) == 0]
+    return starting_nodes
 
 
 def get_sink_nodes(graph: DiGraph) -> List[str]:
@@ -273,7 +274,8 @@ def get_sink_nodes(graph: DiGraph) -> List[str]:
     :param graph: (nx.DiGraph) A directed graph object
     :return: (list) A list of all nodes without successors
     """
-    pass
+    sink_nodes = [node for node in graph.nodes() if len(list(graph.successors(node))) == 0]
+    return sink_nodes
 
 
 def get_contigs(
@@ -286,7 +288,21 @@ def get_contigs(
     :param ending_nodes: (list) A list of nodes without successors
     :return: (list) List of [contiguous sequence and their length]
     """
-    pass
+    contigs = []
+    # Iterate over all possible pairs of starting and ending nodes
+    for start_node in starting_nodes:
+        for end_node in ending_nodes:
+            # Check if path exist between the starting and ending nodes
+            if has_path(graph, start_node, end_node):
+                # Get all simple path
+                paths = all_simple_paths(graph, start_node, end_node)
+                # Iterate over all simple paths
+                for path in paths:
+                    contig = path[0] # Initialize the contig with the first node
+                    for node in path[1:]:
+                        contig += node[-1] # Add the last character of the node to the contig
+                    contigs.append((contig, len(contig)))
+    return contigs
 
 
 def save_contigs(contigs_list: List[str], output_file: Path) -> None:
@@ -295,7 +311,10 @@ def save_contigs(contigs_list: List[str], output_file: Path) -> None:
     :param contig_list: (list) List of [contiguous sequence and their length]
     :param output_file: (Path) Path to the output file
     """
-    pass
+    with open(output_file, "w") as f:
+        for i, (contig, length) in enumerate(contigs_list):
+            f.write(f">contig_{i} len={length}\n")
+            f.write(f"{contig}\n")
 
 
 def draw_graph(graph: DiGraph, graphimg_file: Path) -> None:  # pragma: no cover
