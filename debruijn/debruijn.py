@@ -13,6 +13,7 @@
 
 """Perform assembly based on debruijn graph."""
 
+# LIBRARY IMPORTS
 import argparse
 import os
 import sys
@@ -29,8 +30,7 @@ from networkx import (
 import matplotlib
 from operator import itemgetter
 import random
-
-random.seed(9001)
+random.seed(9001) # For reproducibility
 from random import randint
 import statistics
 import textwrap
@@ -39,16 +39,19 @@ from typing import Iterator, Dict, List
 
 matplotlib.use("Agg")
 
-__author__ = "Your Name"
+
+# METADATAS
+__author__ = "Essmay Touami"
 __copyright__ = "Universite Paris Diderot"
-__credits__ = ["Your Name"]
+__credits__ = ["Essmay Touami"]
 __license__ = "GPL"
 __version__ = "1.0.0"
-__maintainer__ = "Your Name"
-__email__ = "your@email.fr"
+__maintainer__ = "Essmay Touami"
+__email__ = "essmay.touami@etu.u-paris.fr"
 __status__ = "Developpement"
 
 
+# FUNCTIONS
 def isfile(path: str) -> Path:  # pragma: no cover
     """Check if path is an existing file.
 
@@ -102,8 +105,16 @@ def read_fastq(fastq_file: Path) -> Iterator[str]:
     :param fastq_file: (Path) Path to the fastq file.
     :return: A generator object that iterate the read sequences.
     """
-    pass
-
+    with open(fastq_file, 'r') as f:
+        while True:
+            f.readline() # ignore the first line starting with '@'
+            sequence = f.readline().strip()  
+            f.readline()  # ignore the line starting with '+'
+            f.readline()  # ignore the quality line
+            if not sequence:
+                break
+            yield sequence
+    
 
 def cut_kmer(read: str, kmer_size: int) -> Iterator[str]:
     """Cut read into kmers of size kmer_size.
@@ -111,7 +122,8 @@ def cut_kmer(read: str, kmer_size: int) -> Iterator[str]:
     :param read: (str) Sequence of a read.
     :return: A generator object that provides the kmers (str) of size kmer_size.
     """
-    pass
+    for i in range(len(read) - kmer_size + 1):
+        yield read[i : i + kmer_size] # return a kmer of size kmer_size
 
 
 def build_kmer_dict(fastq_file: Path, kmer_size: int) -> Dict[str, int]:
@@ -120,7 +132,17 @@ def build_kmer_dict(fastq_file: Path, kmer_size: int) -> Dict[str, int]:
     :param fastq_file: (str) Path to the fastq file.
     :return: A dictionnary object that identify all kmer occurrences.
     """
-    pass
+    kmer_dict = {}
+    #  read the fastq file and cut the reads into kmers
+    for read in read_fastq(fastq_file):
+        # count the number of occurrences of each kmer
+        for kmer in cut_kmer(read, kmer_size):
+            # kmer already seen at least once
+            if kmer in kmer_dict:
+                kmer_dict[kmer] += 1
+            else:
+                kmer_dict[kmer] = 1
+    return kmer_dict
 
 
 def build_graph(kmer_dict: Dict[str, int]) -> DiGraph:
@@ -129,7 +151,20 @@ def build_graph(kmer_dict: Dict[str, int]) -> DiGraph:
     :param kmer_dict: A dictionnary object that identify all kmer occurrences.
     :return: A directed graph (nx) of all kmer substring and weight (occurrence).
     """
-    pass
+    # create a directed graph
+    graph = DiGraph()
+
+    # add the edges between the kmers
+    for kmer, weight in kmer_dict.items():
+        # add the first k-1 prefix of the kmer
+        prefix = kmer[:-1]
+        # add the last k-1 suffix of the kmer
+        suffix = kmer[1:]
+        # add the edge between the prefix and the suffix
+        # with the weight that is the number of occurrences of the kmer
+        graph.add_edge(prefix, suffix, weight=weight)
+    
+    return graph
 
 
 def remove_paths(
@@ -147,7 +182,7 @@ def remove_paths(
     :param delete_sink_node: (boolean) True->We remove the last node of a path
     :return: (nx.DiGraph) A directed graph object
     """
-    pass
+    
 
 
 def select_best_path(
