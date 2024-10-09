@@ -26,6 +26,9 @@ from networkx import (
     random_layout,
     draw,
     spring_layout,
+    draw_networkx_nodes,
+    draw_networkx_edges,
+
 )
 import matplotlib
 from operator import itemgetter
@@ -182,7 +185,19 @@ def remove_paths(
     :param delete_sink_node: (boolean) True->We remove the last node of a path
     :return: (nx.DiGraph) A directed graph object
     """
-    pass
+    for path in path_list:
+        if delete_entry_node and delete_sink_node:
+            # Remove all nodes in the path
+            graph.remove_nodes_from(path)
+        elif delete_entry_node:
+            # Remove all nodes except the last one
+            graph.remove_nodes_from(path[:-1])
+        elif delete_sink_node:
+            # Remove all nodes except the first one
+            graph.remove_nodes_from(path[1:])
+        else:
+            # Remove all nodes except the first and last one
+            graph.remove_nodes_from(path[1:-1])
 
 
 def select_best_path(
@@ -203,7 +218,23 @@ def select_best_path(
     :param delete_sink_node: (boolean) True->We remove the last node of a path
     :return: (nx.DiGraph) A directed graph object
     """
-    pass
+    best_path = None
+    best_score = -1 # Lower bound
+    for i, path in enumerate(path_list):
+        # Score based on frequency and length
+        score = weight_avg_list[i] + path_length[i]
+        # Add randomness
+        score += random.random()
+        # Update the best path
+        if score > best_score:
+            best_score = score
+            best_path = path
+
+    if best_path:
+        # Remove all paths except the best one
+        remove_paths(graph, path_list, delete_entry_node, delete_sink_node)
+    
+    return graph
 
 
 def path_average_weight(graph: DiGraph, path: List[str]) -> float:
@@ -226,7 +257,19 @@ def solve_bubble(graph: DiGraph, ancestor_node: str, descendant_node: str) -> Di
     :param descendant_node: (str) A downstream node in the graph
     :return: (nx.DiGraph) A directed graph object
     """
-    pass
+    # Get all simple paths between the ancestor and descendant
+    paths = list(all_simple_paths(graph, source=ancestor_node, target=descendant_node))
+    
+    # Calculate lengths and weights for each path
+    lengths = []
+    weights = []
+    for path in paths:
+        weight = sum(graph.subgraph(path).edges(data=True)[0][2]['weight'] for edge in graph.subgraph(path).edges(data=True))
+        lengths.append(len(path))
+        weights.append(weight)
+    
+    # Select the best path
+    return select_best_path(graph, paths, lengths, weights, delete_entry_node=True, delete_sink_node=True)
 
 
 def simplify_bubbles(graph: DiGraph) -> DiGraph:
@@ -235,7 +278,33 @@ def simplify_bubbles(graph: DiGraph) -> DiGraph:
     :param graph: (nx.DiGraph) A directed graph object
     :return: (nx.DiGraph) A directed graph object
     """
-    pass
+    bubble_detected = True
+    
+    while bubble_detected:
+        bubble_detected = False
+        
+        # Iterate over each node in the graph
+        for node in graph.nodes:
+            predecessors = list(graph.predecessors(node))
+            
+            # If the node has more than one predecessor, we might have a bubble
+            if len(predecessors) > 1:
+                # Check each pair of predecessors for a common ancestor
+                for i in range(len(predecessors)):
+                    for j in range(i + 1, len(predecessors)):
+                        ancestor = nx.lowest_common_ancestor(graph, predecessors[i], predecessors[j])
+                        
+                        if ancestor is not None:
+                            bubble_detected = True
+                            # Resolve the bubble between the ancestor and the current node
+                            graph = solve_bubble(graph, ancestor, node)
+                            break
+                    if bubble_detected:
+                        break
+            if bubble_detected:
+                break  # Break outer loop if a bubble is detected
+    
+    return graph
 
 
 def solve_entry_tips(graph: DiGraph, starting_nodes: List[str]) -> DiGraph:
@@ -330,10 +399,10 @@ def draw_graph(graph: DiGraph, graphimg_file: Path) -> None:  # pragma: no cover
     # print(elarge)
     # Draw the graph with networkx
     # pos=nx.spring_layout(graph)
-    pos = nx.random_layout(graph)
-    nx.draw_networkx_nodes(graph, pos, node_size=6)
-    nx.draw_networkx_edges(graph, pos, edgelist=elarge, width=6)
-    nx.draw_networkx_edges(
+    pos = random_layout(graph)
+    draw_networkx_nodes(graph, pos, node_size=6)
+    draw_networkx_edges(graph, pos, edgelist=elarge, width=6)
+    draw_networkx_edges(
         graph, pos, edgelist=esmall, width=6, alpha=0.5, edge_color="b", style="dashed"
     )
     # nx.draw_networkx(graph, pos, node_size=10, with_labels=False)
@@ -351,12 +420,9 @@ def main() -> None:  # pragma: no cover
     # Get arguments
     args = get_arguments()
 
-    # Fonctions de dessin du graphe
-    # A decommenter si vous souhaitez visualiser un petit
-    # graphe
     # Plot the graph
-    # if args.graphimg_file:
-    #     draw_graph(graph, args.graphimg_file)
+    if args.graphimg_file:
+        draw_graph(args.graph, args.graphimg_file)
 
 
 if __name__ == "__main__":  # pragma: no cover
